@@ -9,10 +9,12 @@ module CPDs
 
 using Reexport
 using Discretizers
+using ConjugatePriors
 @reexport using Distributions
 @reexport using DataFrames
 
 import Iterators: product
+import ConjugatePriors: NormalInverseGamma
 
 export
     CPD,                           # the abstract CPD type

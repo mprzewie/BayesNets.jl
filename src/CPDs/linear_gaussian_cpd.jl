@@ -33,6 +33,7 @@ function Distributions.fit(::Type{LinearGaussianCPD},
     data::DataFrame,
     target::NodeName;
     min_stdev::Float64=0.0, # an optional minimum on the standard deviation
+    prior::NormalInverseGamma=NormalInverseGamma(0.0, 1.0, 2.0, 1.0),
     )
 
     # no parents
@@ -40,9 +41,10 @@ function Distributions.fit(::Type{LinearGaussianCPD},
     arr = data[target]
     eltype(arr) <: Real || error("fit LinearGaussianCPD requrires target to be numeric")
 
-    μ = convert(Float64, mean(arr))
-    σ = convert(Float64, stdm(arr, μ))
-    σ = max(σ, min_stdev)
+    post = posterior(prior, Normal, arr)
+    σ² = post.scale / (post.shape - 1) # MLE
+    μ = post.mu # MLE
+    σ = max(sqrt(σ²), min_stdev)
 
     LinearGaussianCPD(target, NodeName[], Float64[], μ, σ)
 end
