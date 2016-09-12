@@ -32,19 +32,15 @@ end
 function Distributions.fit(::Type{LinearGaussianCPD},
     data::DataFrame,
     target::NodeName;
-    min_stdev::Float64=0.0, # an optional minimum on the standard deviation
-    prior::NormalInverseGamma=NormalInverseGamma(0.0, 1.0, 2.0, 1.0),
+    prior::NormalInverseGamma = NormalInverseGamma(0.0, 1.0, 1.0, 1.0), # TODO: check whether this is reasonable
     )
 
     # no parents
-
     arr = data[target]
     eltype(arr) <: Real || error("fit LinearGaussianCPD requrires target to be numeric")
 
-    post = posterior(prior, Normal, arr)
-    σ² = post.scale / (post.shape - 1) # MLE
-    μ = post.mu # MLE
-    σ = max(sqrt(σ²), min_stdev)
+    μ, σ² = posterior_mode(prior, Normal, arr) # MLE
+    σ = sqrt(σ²)
 
     LinearGaussianCPD(target, NodeName[], Float64[], μ, σ)
 end
@@ -52,11 +48,11 @@ function Distributions.fit(::Type{LinearGaussianCPD},
     data::DataFrame,
     target::NodeName,
     parents::Vector{NodeName};
-    min_stdev::Float64=0.0, # an optional minimum on the standard deviation
+    prior::MvNormalInverseGamma = MvNormalInverseGamma(zeros(length(parents)+1), eye(length(parents)+1), 1.0, 1.0), # TODO: check whether this is reasonable
     )
 
     if isempty(parents)
-        return fit(LinearGaussianCPD, data, target, min_stdev=min_stdev)
+        return fit(LinearGaussianCPD, data, target, prior=NormalInverseGamma(prior.μ[1], sqrt(1.0/prior.Λ[1]), prior.a, prior.b))
     end
 
     # ---------------------
@@ -71,27 +67,19 @@ function Distributions.fit(::Type{LinearGaussianCPD},
     	for j in 1 : nrow(data)
             X[j,i] = convert(Float64, arr[j])
     	end
+        X[j,end] = 1.0
     end
-    X[:,end] = 1.0
 
     y = convert(Vector{Float64}, data[target])
 
     # --------------------
-    # solve the regression problem
-    #   β = (XᵀX)⁻¹Xᵀy
-    #
-    #     X is the [nsamples × nparents+1] data matrix
-    #     where the last column is 1.0
-    #
-    #     y is the [nsamples] vector of target values
-    #
-    # NOTE: this will fail if X is not full rank
+    # solve the regression problem for β
 
-    β = (X'*X)\(X'*y)
+    β, σ² = posterior_mode(prior, MvNormalInverseGamma, y, X)
+    σ = sqrt(σ²)
 
-    a = β[1:nparents]
+    a = β[1:end-1]
     b = β[end]
-    σ = max(std(y), min_stdev)
 
     LinearGaussianCPD(target, parents, a, b, σ)
 end
