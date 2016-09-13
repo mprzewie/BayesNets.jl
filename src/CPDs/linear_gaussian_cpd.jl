@@ -31,7 +31,7 @@ end
 
 function Distributions.fit(::Type{LinearGaussianCPD},
     data::DataFrame,
-    target::NodeName;
+    target::NodeName,
     prior::NormalInverseGamma = NormalInverseGamma(0.0, 1.0, 1.0, 1.0), # TODO: check whether this is reasonable
     )
 
