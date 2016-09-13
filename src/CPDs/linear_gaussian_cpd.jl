@@ -29,10 +29,75 @@ function Base.call(cpd::LinearGaussianCPD, a::Assignment)
     Normal(μ, cpd.σ)
 end
 
+function _pull_parental_dataset(::Type{LinearGaussianCPD}, data::DataFrame, target::NodeName, parents::Vector{NodeName})
+
+    # 1st row is all of the data for the 1st parent
+    # 2nd row is all of the data for the 2nd parent, etc.
+
+    nparents = length(parents)
+    X = Array(Float64, nrow(data), nparents+1)
+    for (i,p) in enumerate(parents)
+        arr = data[p]
+        for j in 1 : nrow(data)
+            X[j,i] = convert(Float64, arr[j])
+        end
+    end
+    X[:,end] = 1.0
+
+    y = convert(Vector{Float64}, data[target])
+
+    (X, y)
+end
+
+function Distributions.fit(::Type{LinearGaussianCPD}, data::DataFrame, target::NodeName)
+
+    arr = data[target]
+    eltype(arr) <: Real || error("fit LinearGaussianCPD requrires target to be numeric")
+
+    μ = convert(Float64, mean(arr))
+    σ = convert(Float64, stdm(arr, μ))
+    σ = max(σ, min_stdev)
+
+    LinearGaussianCPD(target, NodeName[], Float64[], μ, σ)
+end
+function Distributions.fit(::Type{LinearGaussianCPD}, data::DataFrame, target::NodeName, parents::Vector{NodeName})
+
+    if isempty(parents)
+        return fit(LinearGaussianCPD, data, target)
+    end
+
+    # ---------------------
+    # pull parental dataset
+    # 1st row is all of the data for the 1st parent
+    # 2nd row is all of the data for the 2nd parent, etc.
+
+    X, y = _pull_parental_dataset(LinearGaussianCPD, data, target, parents)
+
+    # --------------------
+    # solve the regression problem
+    #   β = (XᵀX)⁻¹Xᵀy
+    #
+    #     X is the [nsamples × nparents+1] data matrix
+    #     where the last column is 1.0
+    #
+    #     y is the [nsamples] vector of target values
+    #
+    # NOTE: this will fail if X is not full rank
+
+    β = (X'*X)\(X'*y)
+
+    a = β[1:nparents]
+    b = β[end]
+    σ = max(std(y), min_stdev)
+
+    LinearGaussianCPD(target, parents, a, b, σ)
+end
+
+import ConjugatePriors: NormalInverseGamma, MvNormalInverseGamma
 function Distributions.fit(::Type{LinearGaussianCPD},
     data::DataFrame,
     target::NodeName,
-    prior::NormalInverseGamma = NormalInverseGamma(0.0, 1.0, 1.0, 1.0), # TODO: check whether this is reasonable
+    prior::NormalInverseGamma, # ex: NormalInverseGamma(0.0, 1.0, 1.0, 1.0)
     )
 
     # no parents
@@ -47,12 +112,13 @@ end
 function Distributions.fit(::Type{LinearGaussianCPD},
     data::DataFrame,
     target::NodeName,
-    parents::Vector{NodeName};
-    prior::MvNormalInverseGamma = MvNormalInverseGamma(zeros(length(parents)+1), eye(length(parents)+1), 1.0, 1.0), # TODO: check whether this is reasonable
+    parents::Vector{NodeName},
+    prior::MvNormalInverseGamma, # such as MvNormalInverseGamma(zeros(length(parents)+1), eye(length(parents)+1), 1.0, 1.0)
     )
 
     if isempty(parents)
-        return fit(LinearGaussianCPD, data, target, prior=NormalInverseGamma(prior.μ[1], sqrt(1.0/prior.Λ[1]), prior.a, prior.b))
+        sub_prior = NormalInverseGamma(prior.μ[1], sqrt(1.0/prior.Λ[1]), prior.a, prior.b)
+        return fit(LinearGaussianCPD, data, target, sub_prior)
     end
 
     # ---------------------
@@ -60,17 +126,7 @@ function Distributions.fit(::Type{LinearGaussianCPD},
     # 1st row is all of the data for the 1st parent
     # 2nd row is all of the data for the 2nd parent, etc.
 
-    nparents = length(parents)
-    X = Array(Float64, nrow(data), nparents+1)
-    for (i,p) in enumerate(parents)
-        arr = data[p]
-    	for j in 1 : nrow(data)
-            X[j,i] = convert(Float64, arr[j])
-    	end
-        X[j,end] = 1.0
-    end
-
-    y = convert(Vector{Float64}, data[target])
+    X, y = _pull_parental_dataset(LinearGaussianCPD, data, target, parents)
 
     # --------------------
     # solve the regression problem for β
