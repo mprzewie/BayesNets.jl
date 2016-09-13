@@ -32,6 +32,7 @@ export
 
     NamedCategorical,              # a custom distribution, a Categorical with named values
 
+    @define_call,                  # macro for defining the call() function for a cpd
     name,                          # obtain the name of the CPD
     parents,                       # obtain the parents in the CPD
     parentless,                    # whether the given variable is parentless

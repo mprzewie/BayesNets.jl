@@ -76,7 +76,7 @@ let
     # no parents
     let
         df = DataFrame(a=randn(100))
-        cpd = fit(LinearGaussianCPD, df, :a, min_stdev=0.0)
+        cpd = fit(LinearGaussianCPD, df, :a)
 
         @test name(cpd) == :a
         @test parents(cpd) == NodeName[]
@@ -85,6 +85,8 @@ let
         @test nparams(cpd) == 2
         @test pdf(cpd, :a=>0.5) > 0.2
         @test pdf(cpd, :a=>0.0) > pdf(cpd, :a=>0.55)
+
+        fit(LinearGaussianCPD, df, :a, ConjugatePriors.NormalInverseGamma(0.0, 1.0, 1.0, 1.0))
     end
 
     # with parents
@@ -107,8 +109,7 @@ let
         @test isapprox(p.μ, 3.0, atol=0.25)
         @test isapprox(p.σ, 2.0, atol=0.50)
 
-        cpd = fit(LinearGaussianCPD, df, :b, [:a], min_stdev=10.0)
-        @test cpd(:a=>1.0).σ == 10.0
+        fit(LinearGaussianCPD, df, :b, [:a], ConjugatePriors.MvNormalInverseGamma(zeros(length(parents(cpd))+1), eye(length(parents(cpd))+1), 1.0, 1.0))
     end
 end
 
@@ -126,6 +127,8 @@ let
 
         d = cpd()
         @test isa(d, Normal) && isa(d, disttype(cpd))
+
+        cpd = fit(ConditionalLinearGaussianCPD, df, :a, ConjugatePriors.NormalInverseGamma(0.0, 1.0, 1.0, 1.0))
     end
 
     # with parents
@@ -147,6 +150,8 @@ let
         d = cpd(Assignment(:a=>2, :b=>3.0))
         @test isapprox(d.μ, 3.027, atol=0.001)
         @test isapprox(d.σ, 0.421, atol=0.001)
+
+        fit(ConditionalLinearGaussianCPD, df, :c, [:a, :b], ConjugatePriors.MvNormalInverseGamma(zeros(length(parents(cpd))+1), eye(length(parents(cpd))+1), 1.0, 1.0))
     end
 end
 

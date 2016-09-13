@@ -9,7 +9,7 @@ A conditional linear Gaussian CPD, always returns a Normal{Float64}
 	P(x|parents(x)) = { Normal(μ=a₂×continuous_parents(x) + b₂, σ₂) for discrete instantiation 2
                       { ...
 """
-type ConditionalLinearGaussianCPD <: CPD{Normal}
+type ConditionalLinearGaussianCPD <: CPD{Normal{Float64}}
     target::NodeName
     parents::Vector{NodeName} # list of all parents
 
@@ -23,7 +23,7 @@ parents(cpd::ConditionalLinearGaussianCPD) = cpd.parents
 nparams(cpd::ConditionalLinearGaussianCPD) = sum(d->nparams(d), cpd.linear_gaussians)
 @define_call ConditionalLinearGaussianCPD
 @compat function (cpd::ConditionalLinearGaussianCPD)(a::Assignment)
-    
+
     idx = 1
     if !isempty(cpd.parents_disc)
 
@@ -40,30 +40,21 @@ nparams(cpd::ConditionalLinearGaussianCPD) = sum(d->nparams(d), cpd.linear_gauss
     lingaussian(a)
 end
 
-function Distributions.fit(::Type{ConditionalLinearGaussianCPD},
-    data::DataFrame,
-    target::NodeName;
-    min_stdev::Float64=0.0, # an optional minimum on the standard deviation
-    )
+function Distributions.fit(::Type{ConditionalLinearGaussianCPD}, data::DataFrame, target::NodeName)
 
     # no parents
 
     arr = data[target]
     eltype(arr) <: Real || error("fit ConditionalLinearGaussianCPD requrires target to be numeric")
 
-    lingaussian = fit(LinearGaussianCPD, data, target, min_stdev=min_stdev)
+    lingaussian = fit(LinearGaussianCPD, data, target)
 
     ConditionalLinearGaussianCPD(target, NodeName[], NodeName[], Int[], [lingaussian])
 end
-function Distributions.fit(::Type{ConditionalLinearGaussianCPD},
-    data::DataFrame,
-    target::NodeName,
-    parents::Vector{NodeName};
-    min_stdev::Float64=0.0, # an optional minimum on the standard deviation
-    )
+function Distributions.fit(::Type{ConditionalLinearGaussianCPD}, data::DataFrame, target::NodeName, parents::Vector{NodeName})
 
     if isempty(parents)
-        return fit(ConditionalLinearGaussianCPD, data, target, min_stdev=min_stdev)
+        return fit(ConditionalLinearGaussianCPD, data, target)
     end
 
     # ---------------------
@@ -100,12 +91,77 @@ function Distributions.fit(::Type{ConditionalLinearGaussianCPD},
                     push!(indeces, i)
                 end
             end
-            linear_gaussians[q] = fit(LinearGaussianCPD, data[indeces, :], target, parents_cont, min_stdev=min_stdev)
+            linear_gaussians[q] = fit(LinearGaussianCPD, data[indeces, :], target, parents_cont)
         end
         ConditionalLinearGaussianCPD(target, parents, parents_disc, parental_ncategories, linear_gaussians)
 
     else # no discrete parents
-        lingaussian = fit(LinearGaussianCPD, data, target, parents, min_stdev=min_stdev)
+        lingaussian = fit(LinearGaussianCPD, data, target, parents)
+        ConditionalLinearGaussianCPD(target, parents, NodeName[], Int[], [lingaussian])
+    end
+end
+
+function Distributions.fit(::Type{ConditionalLinearGaussianCPD}, data::DataFrame, target::NodeName, prior::NormalInverseGamma)
+
+    # no parents
+
+    arr = data[target]
+    eltype(arr) <: Real || error("fit ConditionalLinearGaussianCPD requrires target to be numeric")
+
+    lingaussian = fit(LinearGaussianCPD, data, target, prior)
+
+    ConditionalLinearGaussianCPD(target, NodeName[], NodeName[], Int[], [lingaussian])
+end
+function Distributions.fit(::Type{ConditionalLinearGaussianCPD}, data::DataFrame, target::NodeName, parents::Vector{NodeName}, prior::MvNormalInverseGamma)
+
+    if isempty(parents)
+        sub_prior = NormalInverseGamma(prior.μ[1], sqrt(1.0/prior.Λ[1]), prior.a, prior.b)
+        return fit(ConditionalLinearGaussianCPD, data, target, sub_prior)
+    end
+
+    # ---------------------
+    # identify discrete and continuous parents
+
+    parents_disc = filter(p->eltype(data[p]) <: Int, parents)
+
+    indeces_parents_cont = find(p->eltype(data[p]) <: AbstractFloat, parents)
+    parents_cont = parents[indeces_parents_cont]
+    sub_prior = ConjugatePriors.MvNormalInverseGamma(prior.μ[[indeces_parents_cont; end]], prior.Λ[[indeces_parents_cont; end], [indeces_parents_cont; end]], prior.a, prior.b)
+
+   # ---------------------
+    # pull discrete dataset
+    # 1st row is all of the data for the 1st parent
+    # 2nd row is all of the data for the 2nd parent, etc.
+    # calc parent_instantiation_counts
+
+    nparents_disc = length(parents_disc)
+
+    if nparents_disc != 0
+
+        parental_ncategories = Array(Int, nparents_disc)
+        dims = Array(UnitRange{Int64}, nparents_disc)
+        for (i,p) in enumerate(parents_disc)
+            parental_ncategories[i] = infer_number_of_instantiations(data[p])
+            dims[i] = 1:parental_ncategories[i]
+        end
+
+        # ---------------------
+        # fit linear gaussians
+
+        linear_gaussians = Array(LinearGaussianCPD, prod(parental_ncategories))
+        for (q, parent_instantiation) in enumerate(product(dims...))
+            indeces = Int[]
+            for i in 1 : nrow(data)
+                if all(j->data[i,parents_disc[j]]==parent_instantiation[j], 1:nparents_disc) # parental instantiation matches
+                    push!(indeces, i)
+                end
+            end
+            linear_gaussians[q] = fit(LinearGaussianCPD, data[indeces, :], target, parents_cont, sub_prior)
+        end
+        ConditionalLinearGaussianCPD(target, parents, parents_disc, parental_ncategories, linear_gaussians)
+
+    else # no discrete parents
+        lingaussian = fit(LinearGaussianCPD, data, target, parents, prior)
         ConditionalLinearGaussianCPD(target, parents, NodeName[], Int[], [lingaussian])
     end
 end

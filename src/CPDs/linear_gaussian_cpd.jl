@@ -57,7 +57,6 @@ function Distributions.fit(::Type{LinearGaussianCPD}, data::DataFrame, target::N
 
     μ = convert(Float64, mean(arr))
     σ = convert(Float64, stdm(arr, μ))
-    σ = max(σ, min_stdev)
 
     LinearGaussianCPD(target, NodeName[], Float64[], μ, σ)
 end
@@ -87,9 +86,9 @@ function Distributions.fit(::Type{LinearGaussianCPD}, data::DataFrame, target::N
 
     β = (X'*X)\(X'*y)
 
-    a = β[1:nparents]
+    a = β[1:end-1]
     b = β[end]
-    σ = max(std(y), min_stdev)
+    σ = std(y)
 
     LinearGaussianCPD(target, parents, a, b, σ)
 end
@@ -105,7 +104,7 @@ function Distributions.fit(::Type{LinearGaussianCPD},
     arr = data[target]
     eltype(arr) <: Real || error("fit LinearGaussianCPD requrires target to be numeric")
 
-    μ, σ² = posterior_mode(prior, Normal, arr) # MLE
+    μ, σ² = ConjugatePriors.posterior_mode(prior, Normal, arr) # MLE
     σ = sqrt(σ²)
 
     LinearGaussianCPD(target, NodeName[], Float64[], μ, σ)
@@ -132,7 +131,7 @@ function Distributions.fit(::Type{LinearGaussianCPD},
     # --------------------
     # solve the regression problem for β
 
-    β, σ² = posterior_mode(prior, MvNormalInverseGamma, y, X)
+    β, σ² = mode(ConjugatePriors.posterior(prior, MvNormalInverseGamma, y, X))
     σ = sqrt(σ²)
 
     a = β[1:end-1]
