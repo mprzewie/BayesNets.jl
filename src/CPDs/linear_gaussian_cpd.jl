@@ -1,11 +1,11 @@
 """
-A linear Gaussian CPD, always returns a Normal{Float64}
+A linear Gaussian CPD, always returns a Normal
 
 	Assumes that target and all parents can be converted to Float64 (ie, are numeric)
 
 	P(x|parents(x)) = Normal(μ=a×parents(x) + b, σ)
 """
-type LinearGaussianCPD <: CPD{Normal{Float64}}
+type LinearGaussianCPD <: CPD{Normal}
     target::NodeName
     parents::Vector{NodeName}
 
@@ -18,8 +18,9 @@ LinearGaussianCPD(target::NodeName, μ::Float64, σ::Float64) = LinearGaussianCP
 name(cpd::LinearGaussianCPD) = cpd.target
 parents(cpd::LinearGaussianCPD) = cpd.parents
 nparams(cpd::LinearGaussianCPD) = length(cpd.a) + 2
+@define_call LinearGaussianCPD
+@compat function (cpd::LinearGaussianCPD)(a::Assignment)
 
-function Base.call(cpd::LinearGaussianCPD, a::Assignment)
     # compute A⋅v + b
     μ = cpd.b
     for (i, p) in enumerate(cpd.parents)

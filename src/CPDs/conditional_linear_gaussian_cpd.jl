@@ -9,7 +9,7 @@ A conditional linear Gaussian CPD, always returns a Normal{Float64}
 	P(x|parents(x)) = { Normal(μ=a₂×continuous_parents(x) + b₂, σ₂) for discrete instantiation 2
                       { ...
 """
-type ConditionalLinearGaussianCPD <: CPD{Normal{Float64}}
+type ConditionalLinearGaussianCPD <: CPD{Normal}
     target::NodeName
     parents::Vector{NodeName} # list of all parents
 
@@ -21,9 +21,9 @@ end
 name(cpd::ConditionalLinearGaussianCPD) = cpd.target
 parents(cpd::ConditionalLinearGaussianCPD) = cpd.parents
 nparams(cpd::ConditionalLinearGaussianCPD) = sum(d->nparams(d), cpd.linear_gaussians)
-
-function Base.call(cpd::ConditionalLinearGaussianCPD, a::Assignment)
-
+@define_call ConditionalLinearGaussianCPD
+@compat function (cpd::ConditionalLinearGaussianCPD)(a::Assignment)
+    
     idx = 1
     if !isempty(cpd.parents_disc)
 

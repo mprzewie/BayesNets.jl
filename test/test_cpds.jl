@@ -141,11 +141,35 @@ let
         @test nparams(cpd) == 6
 
         d = cpd(Assignment(:a=>1, :b=>0.5))
-        @test isapprox(d.μ, 0.538, atol=0.001)
-        @test isapprox(d.σ, 1.130, atol=0.001)
+        @test isapprox(d.μ, 0.5475, atol=0.001)
+        @test isapprox(d.σ, 0.4003, atol=0.001)
 
         d = cpd(Assignment(:a=>2, :b=>3.0))
-        @test isapprox(d.μ, 3.029, atol=0.001)
-        @test isapprox(d.σ, 1.130, atol=0.001)
+        @test isapprox(d.μ, 3.027, atol=0.001)
+        @test isapprox(d.σ, 0.421, atol=0.001)
     end
+end
+
+# FunctionalCPD
+let
+    bn2 = BayesNet()
+    push!(bn2, StaticCPD(:sighted, NamedCategorical([:bird, :plane, :superman], [0.40, 0.55, 0.05])))
+    push!(bn2, FunctionalCPD{Bernoulli}(:happy, [:sighted], a->Bernoulli(a == :superman ? 0.95 : 0.2)))
+
+    @test name(get(bn2, 2)) == :happy
+    @test parents(get(bn2, 2)) == [:sighted]
+
+    val = rand(bn2)
+    @test in(val[:sighted], [:bird, :plane, :superman])
+    @test in(val[:happy], [0,1])
+
+    # named cat
+    ncat = get(bn2, 1).d
+    show(IOBuffer(), ncat)
+    @test ncategories(ncat) == 3
+    @test probs(ncat) == [0.40, 0.55, 0.05]
+    @test params(ncat) == ([0.40, 0.55, 0.05],)
+    @test pdf(ncat, :bird) == 0.4
+    @test isapprox(logpdf(ncat, :bird), log(0.4))
+    show(IOBuffer(), sampler(ncat))
 end
