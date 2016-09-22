@@ -79,8 +79,8 @@ end
 
 macro define_call(cpd_type)
     return quote
-        @compat (cpd::$cpd_type)() = (cpd)(Assignment()) # cpd()
-        @compat (cpd::$cpd_type)(pair::Pair{NodeName}...) = (cpd)(Assignment(pair)) # cpd(:A=>1)
+        @compat (cpd::$cpd_type)() = (cpd)(Dict{Symbol, Any}()) # cpd()
+        @compat (cpd::$cpd_type)(pair::Pair{Symbol}...) = (cpd)(Dict{Symbol, Any}(pair)) # cpd(:A=>1)
     end
 end
 

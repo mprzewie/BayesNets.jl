@@ -21,7 +21,6 @@ CategoricalCPD{D<:Distribution}(target::NodeName, d::D) = CategoricalCPD(target,
 name(cpd::CategoricalCPD) = cpd.target
 parents(cpd::CategoricalCPD) = cpd.parents
 nparams(cpd::CategoricalCPD) = sum(d->paramcount(params(d)), cpd.distributions)
-
 @define_call CategoricalCPD
 @compat function (cpd::CategoricalCPD)(a::Assignment)
 
