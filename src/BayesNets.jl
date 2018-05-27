@@ -104,7 +104,7 @@ export
     bayesian_score_components,
     bayesian_score
 
-
+include("utils.jl")
 include("bayes_nets.jl")
 include("io.jl")
 include("sampling.jl")

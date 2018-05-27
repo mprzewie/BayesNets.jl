@@ -7,10 +7,17 @@ acausal_structures:
 
 using BayesNets.CPDs.DiscreteCPD
 using BayesNets.DAG
+using BayesNets.DiscreteBayesNet
+
+include("qpds.jl")
 
 export
-    AcausalStructure
-
+#     AcausalStructure
+    xD,
+    DiscreteQCPD,
+    HermitianMatrix,
+    isprobmat,
+    event
 
 function xD(i::Int64)
     i = i + 4;
@@ -18,13 +25,4 @@ function xD(i::Int64)
 end
 
 
-mutable struct AcausalStructure{T<:DiscreteCPD} <: ProbabilisticGraphicalModel
-	dag::DAG # nodes are in topological order
 
-	static_cpds::Vector{T} # CPDs associated with nodes that are not entangled
-	name_to_index::Dict{NodeName,Int} # NodeName → index in dag and cpds
-end
-
-AcausalStructure() = AcausalStructure(DAG(0), DiscreteCPD[], Dict{NodeName, Int}())
-
-infer(as::AcausalStructure) = 1
