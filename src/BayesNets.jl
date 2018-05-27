@@ -1,6 +1,5 @@
- __precompile__()
-
 module BayesNets
+__precompile__()
 
 using Reexport
 using Parameters
