@@ -33,7 +33,7 @@ end
 
 function (dmcpd::DiscreteMCPD)(a::Assignment=Assignment())
     if haskey(a, dmcpd.target)
-        result = a[dmcpd]
+        return a[dmcpd]
     else
         if isempty(dmcpd.parents)
             distribution = dmcpd.conditional_distribution.p
@@ -45,7 +45,7 @@ function (dmcpd::DiscreteMCPD)(a::Assignment=Assignment())
 
         all_ncategories = vcat(dmcpd.parental_ncategories, dmcpd.ncategories)
         trace_out_indices = [p for p in 1:length(dmcpd.parents)]
-        result = ptrace(distribution, all_ncategories, trace_out_indices)
+        return ptrace(distribution, all_ncategories, trace_out_indices)
 
         # when the target is a single variable, this is enough
         # in the future, this function will have to support cases when we want a distribution of some part of athe system
@@ -56,42 +56,5 @@ function (dmcpd::DiscreteMCPD)(a::Assignment=Assignment())
         # also, in this case, should any parts of the system be in the assignment,
         # event() function must be applied on the distribution of the system before
         # the result has been traced out from it
-        end
-    end
-
-    HermitianMatrix(result)
-end
-
-
-struct HermitianMatrix{T<:Union{Complex{Float64}, Float64}} <: DiscreteMatrixDistribution
-    K::Int
-    # KxK matrix
-    p::Matrix{T}
-
-    # this constructor replaces the default constructor
-    # this function must be called with explicit T specialization
-    # so HermitianMatrix{Complex{Int64}}(3, y) will work
-    # but HermitianMatrix(3, y) won't
-    function HermitianMatrix{T}(K::Int, p::Matrix{T}) where T
-        x, y = size(p)
-        @check_args(HermitianMatrix, K==x==y)
-#         @check_args(HermitianMatrix, is_probmat(p))
-        new(K, p)
     end
 end
-
-
-function event(system::HermitianMatrix, e::Matrix)
-    HermitianMatrix((e * system.p * e) / trace(e * system.p))
-end
-
-HermitianMatrix{T<:Union{Complex{Float64}, Float64}}(p::Matrix{T}) = HermitianMatrix{T}(length(diag(p)),p)
-HermitianMatrix{T<:Union{Complex{Float64}, Float64}}(v::Vector{T}) = HermitianMatrix{T}(length(v), diagm(v))
-# TODO
-# construtor from integer (K => diagonal of 1/k)
-
-function is_probmat(m::Matrix)
-    isprobvec(real(diag(m)))
-end
-
-const DiscreteQCPD = DiscreteMCPD{HermitianMatrix}

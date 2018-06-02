@@ -122,7 +122,7 @@ include(joinpath("DiscreteBayesNet", "io.jl"))
 
 include(joinpath("Factors", "factors.jl"))
 include(joinpath("Inference", "inference.jl"))
-include(joinpath("Acausal", "acausal_structures.jl"))
+include(joinpath("Acausal", "acausal.jl"))
 
 
 end # module
