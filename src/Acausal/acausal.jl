@@ -15,15 +15,12 @@ include("acausal_structure.jl")
 
 
 export
-    xD,
+    AcausalStructure,
     DiscreteQCPD,
     HermitianMatrix,
     event
 
-function xD(i::Int64)
-    i = i + 4;
-    i+1
-end
+
 
 
 

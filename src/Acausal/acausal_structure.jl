@@ -6,3 +6,8 @@ quantum_bayesian:
 =#
 
 const DiscreteQCPD = DiscreteMCPD{HermitianMatrix}
+
+const AcausalStructure = BayesNet{DiscreteQCPD}
+
+AcausalStructure() = BayesNet(DiscreteQCPD)
+

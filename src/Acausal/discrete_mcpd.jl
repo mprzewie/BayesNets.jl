@@ -58,3 +58,10 @@ function (dmcpd::DiscreteMCPD)(a::Assignment=Assignment())
         # the result has been traced out from it
     end
 end
+
+name(dmcpd::DiscreteMCPD) = dmcpd.target
+parents(dmcpd::DiscreteMCPD) = dmcpd.parents
+
+# TODO
+# nparams(dmcpd::DiscreteMCPD)
+
