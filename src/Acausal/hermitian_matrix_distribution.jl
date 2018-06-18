@@ -22,10 +22,9 @@ struct HermitianMatrix{T<:Union{Complex{Float64}, Float64}} <: DiscreteMatrixDis
     end
 end
 
+event(system::Matrix, e::Matrix) = (e * system * e) / trace(e * system)
 
-function event(system::HermitianMatrix, e::Matrix)
-    HermitianMatrix((e * system.p * e) / trace(e * system.p))
-end
+event(system::HermitianMatrix, e::Matrix) = HermitianMatrix(event(system.p, e))
 
 HermitianMatrix{T<:Union{Complex{Float64}, Float64}}(p::Matrix{T}) = HermitianMatrix{T}(length(diag(p)),p)
 HermitianMatrix{T<:Union{Complex{Float64}, Float64}}(v::Vector{T}) = HermitianMatrix{T}(length(v), diagm(v))
